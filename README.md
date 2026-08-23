@@ -58,9 +58,11 @@ zcode
 
 | Flag | Description |
 | :--- | :--- |
-| `zcode` | Launch ZCode IDE in full-screen GUI mode |
+| `zcode` | Launch ZCode IDE (Auto-selects optimal VirGL / Zink hardware acceleration) |
+| `zcode --virgl` | Force VirGL Native Android GPU Acceleration (Optimized for Snapdragon 8 Elite / Adreno 8xx) |
+| `zcode --zink` | Force Turnip + Zink Native Vulkan driver |
+| `zcode --software` | Fallback mode using LLVMpipe CPU software rasterizer |
 | `zcode --debug` | Run in foreground with verbose Electron logging |
-| `zcode --software` | Fallback mode using LLVMpipe software rasterizer |
 | `zcode --full-delete` | Completely remove ZCode IDE and its configurations |
 | `zcode --proot-reset` | Reset the Debian PRoot container |
 

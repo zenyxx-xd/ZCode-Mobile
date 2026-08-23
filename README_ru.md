@@ -58,9 +58,11 @@ zcode
 
 | Флаг | Описание |
 | :--- | :--- |
-| `zcode` | Запуск ZCode IDE в полноэкранном режиме |
+| `zcode` | Запуск ZCode IDE (Автовыбор аппаратного ускорения VirGL / Zink) |
+| `zcode --virgl` | Принудительное GPU-ускорение VirGL (Оптимизировано под Snapdragon 8 Elite / Adreno 8xx) |
+| `zcode --zink` | Принудительный драйвер Turnip + Zink Native Vulkan |
+| `zcode --software` | Запуск в режиме программного рендеринга на CPU (LLVMpipe) |
 | `zcode --debug` | Запуск в консольном режиме с подробными логами Electron |
-| `zcode --software` | Запуск в режиме программного рендеринга (LLVMpipe) |
 | `zcode --full-delete` | Полное удаление ZCode IDE и его конфигурации |
 | `zcode --proot-reset` | Сброс контейнера Debian PRoot |
 
