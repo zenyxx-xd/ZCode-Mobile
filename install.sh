@@ -177,7 +177,7 @@ apt update -y >/dev/null 2>&1 || pkg update -y >/dev/null 2>&1 || true
 
 info "Installing host packages (x11-repo, termux-x11-nightly, proot-distro, xdotool)..."
 pkg install -y x11-repo >/dev/null 2>&1 || true
-pkg install -y proot-distro curl tar python xdotool termux-x11-nightly >/dev/null 2>&1 || true
+pkg install -y proot-distro curl tar python xdotool termux-x11-nightly virglrenderer-android >/dev/null 2>&1 || pkg install -y virglrenderer-android >/dev/null 2>&1 || true
 
 MISSING_PKGS=()
 for cmd in proot-distro curl tar python3 termux-x11; do
@@ -512,7 +512,10 @@ EOF_GTK
 
 # Argument Handling
 DEBUG_MODE=0
+DEBUG_MODE=0
 SOFTWARE_MODE=0
+VIRGL_MODE=0
+ZINK_MODE=0
 PASS_ARGS=()
 
 for arg in "$@"; do
@@ -520,6 +523,10 @@ for arg in "$@"; do
         DEBUG_MODE=1
     elif [ "$arg" == "--software" ]; then
         SOFTWARE_MODE=1
+    elif [ "$arg" == "--virgl" ]; then
+        VIRGL_MODE=1
+    elif [ "$arg" == "--zink" ]; then
+        ZINK_MODE=1
     else
         PASS_ARGS+=("$arg")
     fi
@@ -566,11 +573,17 @@ if ! xset q >/dev/null 2>&1; then
     exit 1
 fi
 
-# Hardware Acceleration vs Software Mode
+# Hardware Acceleration Selection (VirGL vs Zink/Turnip vs Software)
 if [ "$SOFTWARE_MODE" -eq 1 ]; then
     export LIBGL_ALWAYS_SOFTWARE=1
     export GALLIUM_DRIVER=llvmpipe
     GPU_ARGS="--disable-gpu --disable-software-rasterizer --force-device-scale-factor=2.5"
+elif [ "$VIRGL_MODE" -eq 1 ] || { [ "$ZINK_MODE" -eq 0 ] && { [ -S "/tmp/.virgl_test" ] || [ -S "/data/data/com.termux/files/usr/tmp/.virgl_test" ]; }; }; then
+    export GALLIUM_DRIVER=virpipe
+    export MESA_GL_VERSION_OVERRIDE=4.0
+    export MESA_GLES_VERSION_OVERRIDE=3.2
+    export VTEST_SOCKET_NAME=/tmp/.virgl_test
+    GPU_ARGS="--ignore-gpu-blocklist --enable-gpu-rasterization --enable-oop-rasterization --canvas-oop-rasterization --gpu-rasterization-msaa-sample-count=0 --enable-zero-copy --use-gl=angle --use-angle=gl --enable-webgl --enable-accelerated-2d-canvas --num-raster-threads=8 --start-maximized --disable-gpu-sandbox --force-device-scale-factor=2.5 --enable-smooth-scrolling --password-store=gnome-libsecret"
 else
     # Hardware Acceleration Flags (Native Zink + Turnip KGSL)
     export GALLIUM_DRIVER=zink
@@ -784,6 +797,8 @@ cleanup_and_exit() {
     exec 2>/dev/null
     if [ -n "$PROOT_PID" ]; then kill -9 "$PROOT_PID" 2>/dev/null || true; fi
     if [ -n "$FIFO_PID" ]; then kill -9 "$FIFO_PID" 2>/dev/null || true; fi
+    if [ -n "$VIRGL_PID" ]; then kill -9 "$VIRGL_PID" 2>/dev/null || true; fi
+    pkill -9 -f "virgl_test_server" 2>/dev/null || true
     pkill -9 -f "zcode|matchbox-window-manager" 2>/dev/null || true
     rm -f "/data/data/com.termux/files/usr/tmp/termux_open_fifo"
 
@@ -952,10 +967,40 @@ done
 if [ -d "/storage/self/primary" ]; then PROOT_ARGS+=(--bind=/storage/self/primary:/sdcard); fi
 PROOT_ARGS+=( --bind="/data/data/com.termux/cache" --bind="$HOME" --bind="$PREFIX" )
 
+USE_VIRGL=0
+FORCE_ZINK=0
+FORCE_SOFTWARE=0
+
+for arg in "$@"; do
+    if [ "$arg" == "--virgl" ]; then
+        USE_VIRGL=1
+    elif [ "$arg" == "--zink" ]; then
+        FORCE_ZINK=1
+    elif [ "$arg" == "--software" ]; then
+        FORCE_SOFTWARE=1
+    fi
+done
+
 while true; do
     if ! pgrep -f "termux-x11" > /dev/null 2>&1; then
         termux-x11 :0 >/dev/null 2>&1 &
         sleep 1
+    fi
+
+    if [ "$FORCE_SOFTWARE" -eq 0 ]; then
+        if [ "$USE_VIRGL" -eq 1 ] || { [ "$FORCE_ZINK" -eq 0 ] && command -v virgl_test_server_android >/dev/null 2>&1; }; then
+            if ! pgrep -f "virgl_test_server" > /dev/null 2>&1; then
+                if command -v virgl_test_server_android >/dev/null 2>&1; then
+                    virgl_test_server_android >/dev/null 2>&1 &
+                    VIRGL_PID=$!
+                    sleep 0.4
+                elif command -v virgl_test_server >/dev/null 2>&1; then
+                    virgl_test_server >/dev/null 2>&1 &
+                    VIRGL_PID=$!
+                    sleep 0.4
+                fi
+            fi
+        fi
     fi
 
     if [ "$DEBUG_MODE" -eq 0 ]; then
