@@ -767,27 +767,6 @@ step "Configuring Debian Container Subsystem"
 proot-distro login debian --bind "$SETUP_TMP_DIR:/installer_tmp" --shared-tmp -- bash /installer_tmp/setup_zcode.sh </dev/null
 rm -f "$DEBIAN_SETUP_SCRIPT"
 
-# Watchdog for host
-WATCHDOG_SCRIPT="$PREFIX/bin/zcode-watchdog"
-cat << 'EOF_WATCHDOG' > "$WATCHDOG_SCRIPT"
-#!/usr/bin/env bash
-sleep 6
-while true; do
-    if ! pgrep -f "zcode" >/dev/null 2>&1; then
-        exit 0
-    fi
-    if command -v xdotool >/dev/null 2>&1; then
-        if ! DISPLAY=:0 xdotool search --onlyvisible --class "zcode" >/dev/null 2>&1; then
-            pkill -f "/opt/ZCode/zcode|matchbox" >/dev/null 2>&1 || true
-            exit 0
-        fi
-    fi
-    sleep 2
-done
-EOF_WATCHDOG
-chmod +x "$WATCHDOG_SCRIPT"
-if command -v termux-fix-shebang >/dev/null 2>&1; then termux-fix-shebang "$WATCHDOG_SCRIPT"; fi
-
 step "Deploying Command-Line Launcher ('zcode')"
 ZCODE_LAUNCHER="$PREFIX/bin/zcode"
 cat << 'EOF_TERMUX_LAUNCHER' > "$ZCODE_LAUNCHER"
@@ -801,16 +780,11 @@ SYSDATA_DIR="${PREFIX:-/data/data/com.termux/files/usr}/var/lib/proot-distro/con
 
 cleanup_and_exit() {
     trap - SIGINT SIGTERM
-    pkill -f zcode-watchdog >/dev/null 2>&1 || true
-    pkill -TERM -P $$ 2>/dev/null || true
-    pkill -f "zcode|matchbox" >/dev/null 2>&1 || true
+    exec 2>/dev/null
+    if [ -n "$PROOT_PID" ]; then kill -9 "$PROOT_PID" 2>/dev/null || true; fi
     if [ -n "$FIFO_PID" ]; then kill -9 "$FIFO_PID" 2>/dev/null || true; fi
+    pkill -9 -f "zcode|matchbox-window-manager" 2>/dev/null || true
     rm -f "/data/data/com.termux/files/usr/tmp/termux_open_fifo"
-
-    # Fast container-side shutdown
-    /data/data/com.termux/files/usr/bin/proot \
-        --rootfs="/data/data/com.termux/files/usr/var/lib/proot-distro/containers/debian/rootfs" \
-        /bin/bash -c "pkill -9 -f 'zcode'" >/dev/null 2>&1 || true
 
     echo -e "\n\033[1;38;5;220m  ┌──────────────────────────────────────────────────┐\033[0m"
     echo -e "\033[1;38;5;220m  │ \033[38;5;242mSTATUS         : \033[0m\033[1;38;5;220mSHUTTING DOWN ZCODE             \033[1;38;5;220m│\033[0m"
@@ -987,8 +961,6 @@ while true; do
         /data/data/com.termux/files/usr/bin/am start --user 0 -n com.termux.x11/com.termux.x11.MainActivity >/dev/null 2>&1 || true
     fi
 
-    zcode-watchdog &
-
     if [ "$DEBUG_MODE" -eq 1 ]; then
         echo -e "\033[1;33m[DEBUG] Running ZCode in foreground mode...\033[0m"
         /data/data/com.termux/files/usr/bin/proot "${PROOT_ARGS[@]}" /opt/ZCode/run.sh "$@" 2>&1 | tee /data/data/com.termux/files/home/zcode_debug.log
@@ -1029,7 +1001,6 @@ while true; do
         wait "$PROOT_PID" 2>/dev/null || true
     fi
 
-    pkill -f zcode-watchdog >/dev/null 2>&1 || true
     sleep 1
 done
 cleanup_and_exit
