@@ -512,10 +512,10 @@ EOF_GTK
 
 # Argument Handling
 DEBUG_MODE=0
-DEBUG_MODE=0
 SOFTWARE_MODE=0
 VIRGL_MODE=0
 ZINK_MODE=0
+ANGLE_MODE=0
 PASS_ARGS=()
 
 for arg in "$@"; do
@@ -527,6 +527,8 @@ for arg in "$@"; do
         VIRGL_MODE=1
     elif [ "$arg" == "--zink" ]; then
         ZINK_MODE=1
+    elif [ "$arg" == "--angle" ]; then
+        ANGLE_MODE=1
     else
         PASS_ARGS+=("$arg")
     fi
@@ -573,29 +575,35 @@ if ! xset q >/dev/null 2>&1; then
     exit 1
 fi
 
-# Hardware Acceleration Selection (VirGL vs Zink/Turnip vs Software)
+# Hardware Acceleration Selection (ANGLE Vulkan vs Zink/Turnip vs VirGL vs Software)
 if [ "$SOFTWARE_MODE" -eq 1 ]; then
     export LIBGL_ALWAYS_SOFTWARE=1
     export GALLIUM_DRIVER=llvmpipe
     GPU_ARGS="--disable-gpu --disable-software-rasterizer --force-device-scale-factor=2.5"
-elif [ "$VIRGL_MODE" -eq 1 ] || { [ "$ZINK_MODE" -eq 0 ] && { [ -S "/tmp/.virgl_test" ] || [ -S "/data/data/com.termux/files/usr/tmp/.virgl_test" ]; }; }; then
+elif [ "$ANGLE_MODE" -eq 1 ]; then
+    # ANGLE Vulkan Direct Layer (Zero Tearing, Zero VirGL Artifacts)
+    export GALLIUM_DRIVER=zink
+    export TU_DEBUG=sysmem,noconform,noubwc
+    GPU_ARGS="--ignore-gpu-blocklist --enable-gpu-rasterization --enable-oop-rasterization --canvas-oop-rasterization --gpu-rasterization-msaa-sample-count=0 --enable-zero-copy --use-gl=angle --use-angle=vulkan --enable-features=Vulkan,VulkanFromANGLE,DefaultANGLEVulkan,CanvasOopRasterization --enable-webgl --enable-accelerated-2d-canvas --num-raster-threads=8 --start-maximized --disable-gpu-sandbox --force-device-scale-factor=2.5 --enable-smooth-scrolling --password-store=gnome-libsecret"
+elif [ "$VIRGL_MODE" -eq 1 ]; then
+    # VirGL Android Native Bridge
     export GALLIUM_DRIVER=virpipe
     export MESA_GL_VERSION_OVERRIDE=4.0
     export MESA_GLES_VERSION_OVERRIDE=3.2
     export VTEST_SOCKET_NAME=/tmp/.virgl_test
-    GPU_ARGS="--ignore-gpu-blocklist --enable-gpu-rasterization --enable-oop-rasterization --canvas-oop-rasterization --gpu-rasterization-msaa-sample-count=0 --enable-zero-copy --use-gl=angle --use-angle=gl --enable-webgl --enable-accelerated-2d-canvas --num-raster-threads=8 --start-maximized --disable-gpu-sandbox --force-device-scale-factor=2.5 --enable-smooth-scrolling --password-store=gnome-libsecret"
+    GPU_ARGS="--ignore-gpu-blocklist --enable-gpu-rasterization --enable-oop-rasterization --canvas-oop-rasterization --gpu-rasterization-msaa-sample-count=0 --use-gl=angle --use-angle=gl --enable-webgl --enable-accelerated-2d-canvas --num-raster-threads=8 --start-maximized --disable-gpu-sandbox --force-device-scale-factor=2.5 --password-store=gnome-libsecret"
 else
-    # Hardware Acceleration Flags (Native Zink + Turnip KGSL)
+    # Native Zink + Turnip KGSL with Strict V-Sync FIFO (Tear-Free Hardware Pipeline)
     export GALLIUM_DRIVER=zink
     export MESA_LOADER_DRIVER_OVERRIDE=zink
-    export TU_DEBUG=sysmem,noconform
+    export TU_DEBUG=sysmem,noconform,noubwc
     export ZINK_DESCRIPTORS=lazy
-    export MESA_VK_WSI_PRESENT_MODE=mailbox
+    export MESA_VK_WSI_PRESENT_MODE=fifo
     export MESA_VK_IGNORE_EXTENSIONS="VK_EXT_calibrated_timestamps VK_KHR_calibrated_timestamps"
     export MESA_GL_VERSION_OVERRIDE=4.6COMPAT
     export MESA_GLES_VERSION_OVERRIDE=3.2
     export MESA_GLTHREAD=true
-    export vblank_mode=0
+    export vblank_mode=1
 
     GPU_ARGS="--ignore-gpu-blocklist --disable-vulkan --enable-gpu-rasterization --enable-oop-rasterization --canvas-oop-rasterization --gpu-rasterization-msaa-sample-count=0 --enable-zero-copy --use-gl=angle --enable-webgl --enable-accelerated-2d-canvas --num-raster-threads=8 --start-maximized --disable-gpu-sandbox --force-device-scale-factor=2.5 --enable-smooth-scrolling --password-store=gnome-libsecret"
 fi
@@ -968,14 +976,11 @@ if [ -d "/storage/self/primary" ]; then PROOT_ARGS+=(--bind=/storage/self/primar
 PROOT_ARGS+=( --bind="/data/data/com.termux/cache" --bind="$HOME" --bind="$PREFIX" )
 
 USE_VIRGL=0
-FORCE_ZINK=0
 FORCE_SOFTWARE=0
 
 for arg in "$@"; do
     if [ "$arg" == "--virgl" ]; then
         USE_VIRGL=1
-    elif [ "$arg" == "--zink" ]; then
-        FORCE_ZINK=1
     elif [ "$arg" == "--software" ]; then
         FORCE_SOFTWARE=1
     fi
@@ -987,18 +992,16 @@ while true; do
         sleep 1
     fi
 
-    if [ "$FORCE_SOFTWARE" -eq 0 ]; then
-        if [ "$USE_VIRGL" -eq 1 ] || { [ "$FORCE_ZINK" -eq 0 ] && command -v virgl_test_server_android >/dev/null 2>&1; }; then
-            if ! pgrep -f "virgl_test_server" > /dev/null 2>&1; then
-                if command -v virgl_test_server_android >/dev/null 2>&1; then
-                    virgl_test_server_android >/dev/null 2>&1 &
-                    VIRGL_PID=$!
-                    sleep 0.4
-                elif command -v virgl_test_server >/dev/null 2>&1; then
-                    virgl_test_server >/dev/null 2>&1 &
-                    VIRGL_PID=$!
-                    sleep 0.4
-                fi
+    if [ "$USE_VIRGL" -eq 1 ]; then
+        if ! pgrep -f "virgl_test_server" > /dev/null 2>&1; then
+            if command -v virgl_test_server_android >/dev/null 2>&1; then
+                virgl_test_server_android >/dev/null 2>&1 &
+                VIRGL_PID=$!
+                sleep 0.4
+            elif command -v virgl_test_server >/dev/null 2>&1; then
+                virgl_test_server >/dev/null 2>&1 &
+                VIRGL_PID=$!
+                sleep 0.4
             fi
         fi
     fi
