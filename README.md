@@ -58,9 +58,9 @@ zcode
 
 | Flag | Description |
 | :--- | :--- |
-| `zcode` | Launch ZCode IDE (Auto-selects optimal VirGL / Zink hardware acceleration) |
-| `zcode --virgl` | Force VirGL Native Android GPU Acceleration (Optimized for Snapdragon 8 Elite / Adreno 8xx) |
-| `zcode --zink` | Force Turnip + Zink Native Vulkan driver |
+| `zcode` | Launch ZCode IDE (Default: ANGLE Vulkan Direct on Turnip — tear-free, artifact-free) |
+| `zcode --zink` | Force Turnip + Zink OpenGL mode with Strict V-Sync FIFO |
+| `zcode --virgl` | Force VirGL Native Android GPU bridge |
 | `zcode --software` | Fallback mode using LLVMpipe CPU software rasterizer |
 | `zcode --debug` | Run in foreground with verbose Electron logging |
 | `zcode --full-delete` | Completely remove ZCode IDE and its configurations |

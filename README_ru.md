@@ -58,9 +58,9 @@ zcode
 
 | Флаг | Описание |
 | :--- | :--- |
-| `zcode` | Запуск ZCode IDE (Автовыбор аппаратного ускорения VirGL / Zink) |
-| `zcode --virgl` | Принудительное GPU-ускорение VirGL (Оптимизировано под Snapdragon 8 Elite / Adreno 8xx) |
-| `zcode --zink` | Принудительный драйвер Turnip + Zink Native Vulkan |
+| `zcode` | Запуск ZCode IDE (По умолчанию: ANGLE Vulkan на Turnip — без артефактов и разрывов) |
+| `zcode --zink` | Принудительный режим OpenGL Zink с аппаратной синхронизацией V-Sync FIFO |
+| `zcode --virgl` | Принудительный мост VirGL к нативному драйверу Android |
 | `zcode --software` | Запуск в режиме программного рендеринга на CPU (LLVMpipe) |
 | `zcode --debug` | Запуск в консольном режиме с подробными логами Electron |
 | `zcode --full-delete` | Полное удаление ZCode IDE и его конфигурации |

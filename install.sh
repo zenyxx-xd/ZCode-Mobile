@@ -575,16 +575,11 @@ if ! xset q >/dev/null 2>&1; then
     exit 1
 fi
 
-# Hardware Acceleration Selection (ANGLE Vulkan vs Zink/Turnip vs VirGL vs Software)
+# Hardware Acceleration Selection (Default: ANGLE Vulkan, with Zink / VirGL / Software options)
 if [ "$SOFTWARE_MODE" -eq 1 ]; then
     export LIBGL_ALWAYS_SOFTWARE=1
     export GALLIUM_DRIVER=llvmpipe
     GPU_ARGS="--disable-gpu --disable-software-rasterizer --force-device-scale-factor=2.5"
-elif [ "$ANGLE_MODE" -eq 1 ]; then
-    # ANGLE Vulkan Direct Layer (Zero Tearing, Zero VirGL Artifacts)
-    export GALLIUM_DRIVER=zink
-    export TU_DEBUG=sysmem,noconform,noubwc
-    GPU_ARGS="--ignore-gpu-blocklist --enable-gpu-rasterization --enable-oop-rasterization --canvas-oop-rasterization --gpu-rasterization-msaa-sample-count=0 --enable-zero-copy --use-gl=angle --use-angle=vulkan --enable-features=Vulkan,VulkanFromANGLE,DefaultANGLEVulkan,CanvasOopRasterization --enable-webgl --enable-accelerated-2d-canvas --num-raster-threads=8 --start-maximized --disable-gpu-sandbox --force-device-scale-factor=2.5 --enable-smooth-scrolling --password-store=gnome-libsecret"
 elif [ "$VIRGL_MODE" -eq 1 ]; then
     # VirGL Android Native Bridge
     export GALLIUM_DRIVER=virpipe
@@ -592,8 +587,8 @@ elif [ "$VIRGL_MODE" -eq 1 ]; then
     export MESA_GLES_VERSION_OVERRIDE=3.2
     export VTEST_SOCKET_NAME=/tmp/.virgl_test
     GPU_ARGS="--ignore-gpu-blocklist --enable-gpu-rasterization --enable-oop-rasterization --canvas-oop-rasterization --gpu-rasterization-msaa-sample-count=0 --use-gl=angle --use-angle=gl --enable-webgl --enable-accelerated-2d-canvas --num-raster-threads=8 --start-maximized --disable-gpu-sandbox --force-device-scale-factor=2.5 --password-store=gnome-libsecret"
-else
-    # Native Zink + Turnip KGSL with Strict V-Sync FIFO (Tear-Free Hardware Pipeline)
+elif [ "$ZINK_MODE" -eq 1 ]; then
+    # Native Zink + Turnip KGSL with Strict V-Sync FIFO
     export GALLIUM_DRIVER=zink
     export MESA_LOADER_DRIVER_OVERRIDE=zink
     export TU_DEBUG=sysmem,noconform,noubwc
@@ -604,8 +599,17 @@ else
     export MESA_GLES_VERSION_OVERRIDE=3.2
     export MESA_GLTHREAD=true
     export vblank_mode=1
-
     GPU_ARGS="--ignore-gpu-blocklist --disable-vulkan --enable-gpu-rasterization --enable-oop-rasterization --canvas-oop-rasterization --gpu-rasterization-msaa-sample-count=0 --enable-zero-copy --use-gl=angle --enable-webgl --enable-accelerated-2d-canvas --num-raster-threads=8 --start-maximized --disable-gpu-sandbox --force-device-scale-factor=2.5 --enable-smooth-scrolling --password-store=gnome-libsecret"
+else
+    # Default: ANGLE Vulkan Direct Layer (Zero Tearing, Zero Artifacts, Native Turnip Acceleration)
+    export GALLIUM_DRIVER=zink
+    export MESA_LOADER_DRIVER_OVERRIDE=zink
+    export TU_DEBUG=sysmem,noconform,noubwc
+    export ZINK_DESCRIPTORS=lazy
+    export MESA_VK_WSI_PRESENT_MODE=mailbox
+    export MESA_GLTHREAD=true
+    export vblank_mode=0
+    GPU_ARGS="--ignore-gpu-blocklist --enable-gpu-rasterization --enable-oop-rasterization --canvas-oop-rasterization --gpu-rasterization-msaa-sample-count=0 --enable-zero-copy --use-gl=angle --use-angle=vulkan --enable-features=Vulkan,VulkanFromANGLE,DefaultANGLEVulkan,CanvasOopRasterization --enable-webgl --enable-accelerated-2d-canvas --num-raster-threads=8 --start-maximized --disable-gpu-sandbox --force-device-scale-factor=2.5 --enable-smooth-scrolling --password-store=gnome-libsecret"
 fi
 
 # Minimal Window Manager
