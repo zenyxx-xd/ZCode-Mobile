@@ -590,6 +590,7 @@ fi
 # Minimal Window Manager
 if ! pgrep -f "matchbox-window-manager" > /dev/null 2>&1; then
     matchbox-window-manager -use_titlebar no >/dev/null 2>&1 &
+    MB_PID=$!
     sleep 0.2
 fi
 
@@ -602,10 +603,17 @@ fi
 if [ "$DEBUG_MODE" -eq 1 ]; then
     export ELECTRON_ENABLE_LOGGING=1
     export ELECTRON_ENABLE_STACK_DUMPING=1
-    exec "$Z_BIN" --no-sandbox $GPU_ARGS --enable-logging --v=1 "${PASS_ARGS[@]}"
+    "$Z_BIN" --no-sandbox $GPU_ARGS --enable-logging --v=1 "${PASS_ARGS[@]}"
 else
-    exec "$Z_BIN" --no-sandbox $GPU_ARGS "${PASS_ARGS[@]}" >/dev/null 2>&1
+    "$Z_BIN" --no-sandbox $GPU_ARGS "${PASS_ARGS[@]}" >/dev/null 2>&1
 fi
+Z_EXIT=$?
+
+# Clean up window manager so PRoot container exits cleanly and supervisor loop restarts
+pkill -9 -f "matchbox-window-manager" >/dev/null 2>&1 || true
+if [ -n "$MB_PID" ]; then kill -9 "$MB_PID" >/dev/null 2>&1 || true; fi
+
+exit $Z_EXIT
 EOF_RUN
 chmod +x /opt/ZCode/run.sh
 
@@ -711,51 +719,44 @@ if ! is_authenticated; then
 fi
 echo -e ""
 
-/opt/ZCode/run.sh "$@" &
-Z_PID=$!
+while true; do
+    /opt/ZCode/run.sh "$@" &
+    Z_PID=$!
 
-switch_to_x11() {
-    if [ -x "/data/data/com.termux/files/usr/bin/am" ]; then
-        /data/data/com.termux/files/usr/bin/am start --user 0 -n com.termux.x11/com.termux.x11.MainActivity >/dev/null 2>&1 || true
-    elif command -v am >/dev/null 2>&1; then
-        am start --user 0 -n com.termux.x11/com.termux.x11.MainActivity >/dev/null 2>&1 || true
-    elif [ -x "/system/bin/am" ]; then
-        /system/bin/am start --user 0 -n com.termux.x11/com.termux.x11.MainActivity >/dev/null 2>&1 || true
-    fi
-}
-
-while kill -0 "$Z_PID" 2>/dev/null; do
-    if [ "$NEED_AUTH" -eq 1 ]; then
-        if read -s -t 0.5 -n 1 -r key; then
-            if [[ "$key" == "a" || "$key" == "A" ]]; then
-                echo -e "\033[1;38;5;39m◆ ZCode OAuth Login\033[0m"
-                URL=""
-                if [ -x "/data/data/com.termux/files/usr/bin/termux-clipboard-get" ]; then
-                    CLIP=$(/data/data/com.termux/files/usr/bin/termux-clipboard-get 2>/dev/null || true)
-                    if [[ "$CLIP" =~ ^zcode:// ]]; then
-                        URL="$CLIP"
-                        echo -e "  \033[1;38;5;48m✓\033[0m Found callback in clipboard!"
+    while kill -0 "$Z_PID" 2>/dev/null; do
+        if [ "$NEED_AUTH" -eq 1 ]; then
+            if read -s -t 0.5 -n 1 -r key; then
+                if [[ "$key" == "a" || "$key" == "A" ]]; then
+                    echo -e "\033[1;38;5;39m◆ ZCode OAuth Login\033[0m"
+                    URL=""
+                    if [ -x "/data/data/com.termux/files/usr/bin/termux-clipboard-get" ]; then
+                        CLIP=$(/data/data/com.termux/files/usr/bin/termux-clipboard-get 2>/dev/null || true)
+                        if [[ "$CLIP" =~ ^zcode:// ]]; then
+                            URL="$CLIP"
+                            echo -e "  \033[1;38;5;48m✓\033[0m Found callback in clipboard!"
+                        fi
+                    fi
+                    if [ -z "$URL" ]; then
+                        echo -e "  Paste the \033[1;32mzcode://...\033[0m URL from your browser:"
+                        read -r -p "  URL > " URL
+                    fi
+                    if [ -n "$URL" ]; then
+                        /opt/ZCode/run.sh "$URL" >/dev/null 2>&1 &
+                        echo -e "  \033[1;38;5;48m✓\033[0m Authorization sent to ZCode! Switching to Termux:X11...\n"
+                        sleep 0.5
+                        switch_to_x11
+                        NEED_AUTH=0
                     fi
                 fi
-                if [ -z "$URL" ]; then
-                    echo -e "  Paste the \033[1;32mzcode://...\033[0m URL from your browser:"
-                    read -r -p "  URL > " URL
-                fi
-                if [ -n "$URL" ]; then
-                    /opt/ZCode/run.sh "$URL" >/dev/null 2>&1 &
-                    echo -e "  \033[1;38;5;48m✓\033[0m Authorization sent to ZCode! Switching to Termux:X11...\n"
-                    sleep 0.5
-                    switch_to_x11
-                    NEED_AUTH=0
-                fi
             fi
+        else
+            sleep 1
         fi
-    else
-        sleep 1
-    fi
-done
+    done
 
-wait "$Z_PID" 2>/dev/null || true
+    wait "$Z_PID" 2>/dev/null || true
+    sleep 1
+done
 cleanup_and_exit
 EOF_INTERNAL_LAUNCH
 chmod +x /usr/local/bin/zcode
