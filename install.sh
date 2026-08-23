@@ -108,7 +108,6 @@ error()   { wrap_log 6 "   ${RED_BOLD}✗  Error: ${RESET}${RED_BOLD}" "      ${
 
 draw_banner() {
     local ver="$1"
-    local env_type="$2"
     local term_w=$(get_cols)
     local max_w=$((term_w - 4))
     if [ "$max_w" -lt 38 ]; then max_w=38; fi
@@ -129,11 +128,9 @@ draw_banner() {
     }
 
     echo -e "\n${CYAN_BOLD}  ┌${hline}┐${RESET}"
-    pad_line "${GRAY}ZCODE IDE        ${RESET}${PURPLE_BOLD}MOBILE GUI"
+    pad_line "${GRAY}ZCODE MOBILE INSTALLER"
     echo -e "${CYAN_BOLD}  ├${hline}┤${RESET}"
     pad_line "${GRAY}Version        : ${RESET}${GREEN_BOLD}v${ver}"
-    pad_line "${GRAY}Mode           : ${RESET}${WHITE}${env_type}"
-    pad_line "${GRAY}Architecture   : ${RESET}${WHITE}Vanilla Electron ARM64/x64"
     echo -e "${CYAN_BOLD}  └${hline}┘${RESET}"
 }
 
@@ -153,7 +150,7 @@ if [ -f "$HOME/.from_proot_sync" ]; then
     rm -f "$HOME/.from_proot_sync"
 fi
 
-draw_banner "$INSTALLER_VERSION" "Termux Host (Full Setup)"
+draw_banner "$INSTALLER_VERSION"
 
 if [ "$FROM_PROOT" -eq 1 ]; then
     info "Automatic transition from PRoot session detected."
@@ -653,11 +650,9 @@ draw_banner() {
     }
 
     echo -e "\n\033[1;38;5;39m  ┌${hline}┐\033[0m"
-    pad_line "\033[38;5;242mZCODE IDE        \033[0m\033[1;38;5;141mMOBILE GUI"
+    pad_line "\033[38;5;242mZCODE MOBILE"
     echo -e "\033[1;38;5;39m  ├${hline}┤\033[0m"
     pad_line "\033[38;5;242mVersion        : \033[0m\033[1;38;5;48mv${ver}"
-    pad_line "\033[38;5;242mTarget OS      : \033[0m\033[1;37mAndroid Termux X11"
-    pad_line "\033[38;5;242mArchitecture   : \033[0m\033[1;37mDebian PRoot Matchbox"
     echo -e "\033[1;38;5;39m  └${hline}┘\033[0m"
 }
 
@@ -863,11 +858,9 @@ draw_banner() {
     }
 
     echo -e "\n\033[1;38;5;39m  ┌${hline}┐\033[0m"
-    pad_line "\033[38;5;242mZCODE IDE        \033[0m\033[1;38;5;141mMOBILE GUI"
+    pad_line "\033[38;5;242mZCODE MOBILE"
     echo -e "\033[1;38;5;39m  ├${hline}┤\033[0m"
     pad_line "\033[38;5;242mVersion        : \033[0m\033[1;38;5;48mv${ver}"
-    pad_line "\033[38;5;242mTarget OS      : \033[0m\033[1;37mAndroid Termux X11"
-    pad_line "\033[38;5;242mArchitecture   : \033[0m\033[1;37mDebian PRoot Matchbox"
     echo -e "\033[1;38;5;39m  └${hline}┘\033[0m"
 }
 
