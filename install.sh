@@ -14,9 +14,23 @@ if [ -z "$PREFIX" ] || [ ! -d "/data/data/com.termux/files/usr" ]; then
     # Running inside PRoot container: silently sync repo and hand over to Termux host
     mkdir -p /data/data/com.termux/files/home/ZCode-Mobile 2>/dev/null || true
     touch /data/data/com.termux/files/home/.from_proot_sync 2>/dev/null || true
-    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd)"
-    if [ -n "$SCRIPT_DIR" ] && [ -d "$SCRIPT_DIR" ]; then
-        cp -r "$SCRIPT_DIR"/* /data/data/com.termux/files/home/ZCode-Mobile/ 2>/dev/null || true
+
+    # 1. Copy local repo if present on disk
+    SCRIPT_PATH="${BASH_SOURCE[0]}"
+    if [ -n "$SCRIPT_PATH" ] && [ -f "$SCRIPT_PATH" ]; then
+        SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" 2>/dev/null && pwd)"
+        if [ -n "$SCRIPT_DIR" ] && [ -d "$SCRIPT_DIR" ]; then
+            cp -r "$SCRIPT_DIR"/* /data/data/com.termux/files/home/ZCode-Mobile/ 2>/dev/null || true
+        fi
+    fi
+
+    # 2. If install.sh is still missing (e.g. piped via curl | bash), download directly
+    if [ ! -f "/data/data/com.termux/files/home/ZCode-Mobile/install.sh" ]; then
+        if command -v curl >/dev/null 2>&1; then
+            curl -sL https://raw.githubusercontent.com/zenyxx-xd/ZCode-Mobile/main/install.sh -o /data/data/com.termux/files/home/ZCode-Mobile/install.sh 2>/dev/null || true
+        elif command -v wget >/dev/null 2>&1; then
+            wget -q https://raw.githubusercontent.com/zenyxx-xd/ZCode-Mobile/main/install.sh -O /data/data/com.termux/files/home/ZCode-Mobile/install.sh 2>/dev/null || true
+        fi
     fi
     chmod +x /data/data/com.termux/files/home/ZCode-Mobile/install.sh 2>/dev/null || true
 
