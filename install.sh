@@ -720,12 +720,33 @@ is_authenticated() {
 }
 
 for arg in "$@"; do
-    if [ "$arg" == "--full-delete" ]; then
-        echo -e "\n\033[1;31m⚠️  WARNING: This will delete ZCode and its configuration.\033[0m"
-        read -p "Are you sure you want to proceed? [y/N]: " confirm
+    if [ "$arg" == "--clean-wipe" ] || [ "$arg" == "--purge-configs" ]; then
+        echo -e "\n\033[1;31m⚠️  WARNING: This will delete ALL ZCode configurations, caches, and extensions.\033[0m"
+        read -p "  Are you sure you want to proceed? [y/N]: " confirm
         if [[ "$confirm" =~ ^[Yy]$ ]]; then
-            rm -rf /opt/ZCode /usr/local/bin/zcode /usr/local/bin/zcode-watchdog "$HOME/.config/ZCode" "$HOME/.zcode"
-            echo -e "\033[1;32mZCode removed successfully.\033[0m"
+            pkill -9 -f "zcode|matchbox-window-manager" >/dev/null 2>&1 || true
+            rm -rf "$HOME/.config/ZCode" "$HOME/.config/zcode" "$HOME/.zcode" \
+                   "$HOME/.local/share/zcode" "$HOME/.local/share/ZCode" \
+                   "$HOME/.cache/zcode" "$HOME/.cache/ZCode" \
+                   "$HOME/.vscode" "$HOME/.vscode-oss" /tmp/zcode*
+            echo -e "\033[1;32m✓ All ZCode configurations deleted successfully.\033[0m"
+            exit 0
+        else
+            echo "Cancelled."
+            exit 0
+        fi
+    elif [ "$arg" == "--full-delete" ]; then
+        echo -e "\n\033[1;31m⚠️  WARNING: This will delete ZCode and its configuration.\033[0m"
+        read -p "  Are you sure you want to proceed? [y/N]: " confirm
+        if [[ "$confirm" =~ ^[Yy]$ ]]; then
+            pkill -9 -f "zcode|matchbox-window-manager" >/dev/null 2>&1 || true
+            rm -rf /opt/ZCode /usr/local/bin/zcode /usr/local/bin/zcode-watchdog \
+                   "$HOME/.config/ZCode" "$HOME/.config/zcode" "$HOME/.zcode" \
+                   "$HOME/.local/share/zcode" "$HOME/.local/share/ZCode" \
+                   "$HOME/.cache/zcode" "$HOME/.cache/ZCode" \
+                   "$HOME/.vscode" "$HOME/.vscode-oss" \
+                   /usr/share/applications/zcode.desktop /tmp/zcode*
+            echo -e "\033[1;32m✓ ZCode removed successfully.\033[0m"
             exit 0
         else
             echo "Cancelled."
@@ -910,6 +931,57 @@ DEBUG_MODE=0
 for arg in "$@"; do
     if [ "$arg" == "--debug" ]; then
         DEBUG_MODE=1
+    elif [ "$arg" == "--reinstall" ]; then
+        echo -e "\n\033[1;38;5;39m🔄 ZCode Mobile Full Reinstall\033[0m"
+        echo -e "  \033[38;5;242mThis will purge old binaries, cached data, and configurations, then download and install the latest version.\033[0m"
+        read -p "  Are you sure you want to proceed? [y/N]: " confirm
+        if [[ "$confirm" =~ ^[Yy]$ ]]; then
+            echo -e "\n\033[1;38;5;220m[1/3] Terminating any running ZCode processes...\033[0m"
+            pkill -9 -f "zcode|matchbox-window-manager|virgl_test_server" >/dev/null 2>&1 || true
+            echo -e "\033[1;38;5;220m[2/3] Purging old ZCode binaries and user configurations...\033[0m"
+            if [ -d "$ROOTFS_DIR" ]; then
+                rm -rf "$ROOTFS_DIR/opt/ZCode" "$ROOTFS_DIR/opt/zcode" \
+                       "$ROOTFS_DIR/root/.config/ZCode" "$ROOTFS_DIR/root/.config/zcode" \
+                       "$ROOTFS_DIR/root/.zcode" "$ROOTFS_DIR/root/.local/share/zcode" "$ROOTFS_DIR/root/.local/share/ZCode" \
+                       "$ROOTFS_DIR/root/.cache/zcode" "$ROOTFS_DIR/root/.cache/ZCode" \
+                       "$ROOTFS_DIR/root/.vscode" "$ROOTFS_DIR/root/.vscode-oss" \
+                       "$ROOTFS_DIR/usr/local/bin/zcode" "$ROOTFS_DIR/usr/local/bin/zcode-watchdog" \
+                       "$ROOTFS_DIR/usr/share/applications/zcode.desktop" \
+                       "$ROOTFS_DIR/tmp/zcode*" "$ROOTFS_DIR/tmp/.X11-unix"
+            fi
+            rm -rf "$HOME/.config/ZCode" "$HOME/.config/zcode" "$HOME/.zcode" \
+                   "$HOME/.local/share/zcode" "$HOME/.local/share/ZCode" \
+                   "$HOME/.cache/zcode" "$HOME/.cache/ZCode" \
+                   "$PREFIX/tmp/termux_open_fifo" "$HOME/zcode_debug.log"
+            echo -e "  \033[1;38;5;48m✓\033[0m Cleanup completed."
+            echo -e "\033[1;38;5;220m[3/3] Running installer from GitHub...\033[0m\n"
+            curl -sL https://raw.githubusercontent.com/zenyxx-xd/ZCode-Mobile/main/install.sh | bash
+            exit 0
+        else
+            echo "Cancelled."
+            exit 0
+        fi
+    elif [ "$arg" == "--clean-wipe" ] || [ "$arg" == "--purge-configs" ]; then
+        echo -e "\n\033[1;31m⚠️ WARNING: This will delete ALL ZCode configurations, caches, extensions, and login credentials.\033[0m"
+        read -p "  Are you sure you want to proceed? [y/N]: " confirm
+        if [[ "$confirm" =~ ^[Yy]$ ]]; then
+            pkill -9 -f "zcode|matchbox-window-manager" >/dev/null 2>&1 || true
+            if [ -d "$ROOTFS_DIR" ]; then
+                rm -rf "$ROOTFS_DIR/root/.config/ZCode" "$ROOTFS_DIR/root/.config/zcode" \
+                       "$ROOTFS_DIR/root/.zcode" "$ROOTFS_DIR/root/.local/share/zcode" "$ROOTFS_DIR/root/.local/share/ZCode" \
+                       "$ROOTFS_DIR/root/.cache/zcode" "$ROOTFS_DIR/root/.cache/ZCode" \
+                       "$ROOTFS_DIR/root/.vscode" "$ROOTFS_DIR/root/.vscode-oss" \
+                       "$ROOTFS_DIR/tmp/zcode*"
+            fi
+            rm -rf "$HOME/.config/ZCode" "$HOME/.config/zcode" "$HOME/.zcode" \
+                   "$HOME/.local/share/zcode" "$HOME/.local/share/ZCode" \
+                   "$HOME/.cache/zcode" "$HOME/.cache/ZCode" "$HOME/zcode_debug.log"
+            echo -e "\033[1;32m✓ All ZCode configurations and cached profiles deleted successfully.\033[0m"
+            exit 0
+        else
+            echo "Cancelled."
+            exit 0
+        fi
     elif [ "$arg" == "--proot-reset" ]; then
         echo -e "\n\033[1;33m⚠️ WARNING: This will reset the debian container.\033[0m"
         read -p "Are you sure you want to proceed? [y/N]: " confirm
@@ -922,12 +994,24 @@ for arg in "$@"; do
             exit 0
         fi
     elif [ "$arg" == "--full-delete" ]; then
-        echo -e "\n\033[1;31m⚠️ WARNING: This will delete ZCode and related configurations.\033[0m"
-        read -p "Are you sure you want to proceed? [y/N]: " confirm
+        echo -e "\n\033[1;31m⚠️ WARNING: This will delete ZCode and all associated configurations.\033[0m"
+        read -p "  Are you sure you want to proceed? [y/N]: " confirm
         if [[ "$confirm" =~ ^[Yy]$ ]]; then
-            proot-distro remove debian >/dev/null 2>&1 || true
-            rm -f "$PREFIX/bin/zcode" "$PREFIX/bin/zcode-watchdog" "$HOME/zcode_debug.log"
-            echo -e "\033[1;32mDeleted successfully.\033[0m"
+            pkill -9 -f "zcode|matchbox-window-manager|virgl_test_server" >/dev/null 2>&1 || true
+            if [ -d "$ROOTFS_DIR" ]; then
+                rm -rf "$ROOTFS_DIR/opt/ZCode" "$ROOTFS_DIR/opt/zcode" \
+                       "$ROOTFS_DIR/root/.config/ZCode" "$ROOTFS_DIR/root/.config/zcode" \
+                       "$ROOTFS_DIR/root/.zcode" "$ROOTFS_DIR/root/.local/share/zcode" "$ROOTFS_DIR/root/.local/share/ZCode" \
+                       "$ROOTFS_DIR/root/.cache/zcode" "$ROOTFS_DIR/root/.cache/ZCode" \
+                       "$ROOTFS_DIR/root/.vscode" "$ROOTFS_DIR/root/.vscode-oss" \
+                       "$ROOTFS_DIR/usr/local/bin/zcode" "$ROOTFS_DIR/usr/local/bin/zcode-watchdog" \
+                       "$ROOTFS_DIR/usr/share/applications/zcode.desktop"
+            fi
+            rm -rf "$HOME/.config/ZCode" "$HOME/.config/zcode" "$HOME/.zcode" \
+                   "$HOME/.local/share/zcode" "$HOME/.local/share/ZCode" \
+                   "$HOME/.cache/zcode" "$HOME/.cache/ZCode" \
+                   "$PREFIX/bin/zcode" "$PREFIX/bin/zcode-watchdog" "$PREFIX/tmp/termux_open_fifo" "$HOME/zcode_debug.log"
+            echo -e "\033[1;32m✓ ZCode completely uninstalled.\033[0m"
             exit 0
         else
             echo "Cancelled."

@@ -59,11 +59,13 @@ zcode
 | Flag | Description |
 | :--- | :--- |
 | `zcode` | Launch ZCode IDE (Default: ANGLE Vulkan Direct on Turnip — tear-free, artifact-free) |
+| `zcode --reinstall` | **Clean Reinstall:** Purge old files/configs and reinstall fresh version from GitHub |
+| `zcode --clean-wipe` | Delete all user configurations, caches, extensions, and login profiles |
+| `zcode --full-delete` | Completely uninstall ZCode and remove all files and launchers |
 | `zcode --zink` | Force Turnip + Zink OpenGL mode with Strict V-Sync FIFO |
 | `zcode --virgl` | Force VirGL Native Android GPU bridge |
 | `zcode --software` | Fallback mode using LLVMpipe CPU software rasterizer |
 | `zcode --debug` | Run in foreground with verbose Electron logging |
-| `zcode --full-delete` | Completely remove ZCode IDE and its configurations |
 | `zcode --proot-reset` | Reset the Debian PRoot container |
 
 ---
