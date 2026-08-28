@@ -720,11 +720,35 @@ is_authenticated() {
 }
 
 for arg in "$@"; do
-    if [ "$arg" == "--clean-wipe" ] || [ "$arg" == "--purge-configs" ]; then
+    if [ "$arg" == "--reinstall" ]; then
+        echo -e "\n\033[1;38;5;39m🔄 ZCode Mobile Full Reinstall\033[0m"
+        echo -e "  \033[38;5;242mThis will purge old binaries, cached data, and configurations, then download and install the latest version.\033[0m"
+        read -p "  Are you sure you want to proceed? [y/N]: " confirm
+        if [[ "$confirm" =~ ^[Yy]$ ]]; then
+            echo -e "\n\033[1;38;5;220m[1/3] Terminating any running ZCode processes...\033[0m"
+            pkill -9 -f "/opt/ZCode/zcode" >/dev/null 2>&1 || true
+            pkill -9 -f "matchbox-window-manager" >/dev/null 2>&1 || true
+            echo -e "\033[1;38;5;220m[2/3] Purging old ZCode binaries and user configurations...\033[0m"
+            rm -rf /opt/ZCode /opt/zcode \
+                   "$HOME/.config/ZCode" "$HOME/.config/zcode" "$HOME/.zcode" \
+                   "$HOME/.local/share/zcode" "$HOME/.local/share/ZCode" \
+                   "$HOME/.cache/zcode" "$HOME/.cache/ZCode" \
+                   "$HOME/.vscode" "$HOME/.vscode-oss" \
+                   /usr/share/applications/zcode.desktop /tmp/zcode* /tmp/.X11-unix
+            echo -e "  \033[1;38;5;48m✓\033[0m Cleanup completed."
+            echo -e "\033[1;38;5;220m[3/3] Running installer from GitHub...\033[0m\n"
+            curl -sL https://raw.githubusercontent.com/zenyxx-xd/ZCode-Mobile/main/install.sh | bash
+            exit 0
+        else
+            echo "Cancelled."
+            exit 0
+        fi
+    elif [ "$arg" == "--clean-wipe" ] || [ "$arg" == "--purge-configs" ]; then
         echo -e "\n\033[1;31m⚠️  WARNING: This will delete ALL ZCode configurations, caches, and extensions.\033[0m"
         read -p "  Are you sure you want to proceed? [y/N]: " confirm
         if [[ "$confirm" =~ ^[Yy]$ ]]; then
-            pkill -9 -f "zcode|matchbox-window-manager" >/dev/null 2>&1 || true
+            pkill -9 -f "/opt/ZCode/zcode" >/dev/null 2>&1 || true
+            pkill -9 -f "matchbox-window-manager" >/dev/null 2>&1 || true
             rm -rf "$HOME/.config/ZCode" "$HOME/.config/zcode" "$HOME/.zcode" \
                    "$HOME/.local/share/zcode" "$HOME/.local/share/ZCode" \
                    "$HOME/.cache/zcode" "$HOME/.cache/ZCode" \
@@ -739,8 +763,9 @@ for arg in "$@"; do
         echo -e "\n\033[1;31m⚠️  WARNING: This will delete ZCode and its configuration.\033[0m"
         read -p "  Are you sure you want to proceed? [y/N]: " confirm
         if [[ "$confirm" =~ ^[Yy]$ ]]; then
-            pkill -9 -f "zcode|matchbox-window-manager" >/dev/null 2>&1 || true
-            rm -rf /opt/ZCode /usr/local/bin/zcode /usr/local/bin/zcode-watchdog \
+            pkill -9 -f "/opt/ZCode/zcode" >/dev/null 2>&1 || true
+            pkill -9 -f "matchbox-window-manager" >/dev/null 2>&1 || true
+            rm -rf /opt/ZCode /opt/zcode /usr/local/bin/zcode /usr/local/bin/zcode-watchdog \
                    "$HOME/.config/ZCode" "$HOME/.config/zcode" "$HOME/.zcode" \
                    "$HOME/.local/share/zcode" "$HOME/.local/share/ZCode" \
                    "$HOME/.cache/zcode" "$HOME/.cache/ZCode" \
@@ -830,9 +855,9 @@ cleanup_and_exit() {
     exec 2>/dev/null
     if [ -n "$PROOT_PID" ]; then kill -9 "$PROOT_PID" 2>/dev/null || true; fi
     if [ -n "$FIFO_PID" ]; then kill -9 "$FIFO_PID" 2>/dev/null || true; fi
-    if [ -n "$VIRGL_PID" ]; then kill -9 "$VIRGL_PID" 2>/dev/null || true; fi
     pkill -9 -f "virgl_test_server" 2>/dev/null || true
-    pkill -9 -f "zcode|matchbox-window-manager" 2>/dev/null || true
+    pkill -9 -f "/opt/ZCode/zcode" 2>/dev/null || true
+    pkill -9 -f "matchbox-window-manager" 2>/dev/null || true
     rm -f "/data/data/com.termux/files/usr/tmp/termux_open_fifo"
 
     echo -e "\n\033[1;38;5;220m  ┌──────────────────────────────────────────────────┐\033[0m"
@@ -937,7 +962,9 @@ for arg in "$@"; do
         read -p "  Are you sure you want to proceed? [y/N]: " confirm
         if [[ "$confirm" =~ ^[Yy]$ ]]; then
             echo -e "\n\033[1;38;5;220m[1/3] Terminating any running ZCode processes...\033[0m"
-            pkill -9 -f "zcode|matchbox-window-manager|virgl_test_server" >/dev/null 2>&1 || true
+            pkill -9 -f "/opt/ZCode/zcode" >/dev/null 2>&1 || true
+            pkill -9 -f "matchbox-window-manager" >/dev/null 2>&1 || true
+            pkill -9 -f "virgl_test_server" >/dev/null 2>&1 || true
             echo -e "\033[1;38;5;220m[2/3] Purging old ZCode binaries and user configurations...\033[0m"
             if [ -d "$ROOTFS_DIR" ]; then
                 rm -rf "$ROOTFS_DIR/opt/ZCode" "$ROOTFS_DIR/opt/zcode" \
@@ -965,7 +992,8 @@ for arg in "$@"; do
         echo -e "\n\033[1;31m⚠️ WARNING: This will delete ALL ZCode configurations, caches, extensions, and login credentials.\033[0m"
         read -p "  Are you sure you want to proceed? [y/N]: " confirm
         if [[ "$confirm" =~ ^[Yy]$ ]]; then
-            pkill -9 -f "zcode|matchbox-window-manager" >/dev/null 2>&1 || true
+            pkill -9 -f "/opt/ZCode/zcode" >/dev/null 2>&1 || true
+            pkill -9 -f "matchbox-window-manager" >/dev/null 2>&1 || true
             if [ -d "$ROOTFS_DIR" ]; then
                 rm -rf "$ROOTFS_DIR/root/.config/ZCode" "$ROOTFS_DIR/root/.config/zcode" \
                        "$ROOTFS_DIR/root/.zcode" "$ROOTFS_DIR/root/.local/share/zcode" "$ROOTFS_DIR/root/.local/share/ZCode" \
@@ -997,7 +1025,9 @@ for arg in "$@"; do
         echo -e "\n\033[1;31m⚠️ WARNING: This will delete ZCode and all associated configurations.\033[0m"
         read -p "  Are you sure you want to proceed? [y/N]: " confirm
         if [[ "$confirm" =~ ^[Yy]$ ]]; then
-            pkill -9 -f "zcode|matchbox-window-manager|virgl_test_server" >/dev/null 2>&1 || true
+            pkill -9 -f "/opt/ZCode/zcode" >/dev/null 2>&1 || true
+            pkill -9 -f "matchbox-window-manager" >/dev/null 2>&1 || true
+            pkill -9 -f "virgl_test_server" >/dev/null 2>&1 || true
             if [ -d "$ROOTFS_DIR" ]; then
                 rm -rf "$ROOTFS_DIR/opt/ZCode" "$ROOTFS_DIR/opt/zcode" \
                        "$ROOTFS_DIR/root/.config/ZCode" "$ROOTFS_DIR/root/.config/zcode" \
